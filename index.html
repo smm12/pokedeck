@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ぽけでっき — デッキ構築ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F9FB;            /* 白ベース */
+  --bg-deep:#EEF2F6;
+  --line:#E2E8EE;
+  --card:#FFFFFF;
+  --ink:#2B3440;
+  --ink-soft:#77828E;
+  --poke-red:#E3350D;      /* モンスターボールの赤 */
+  --poke-red-deep:#B52A0A;
+  --poke-blue:#2A75BB;
+  --poke-blue-deep:#1F5C96;
+  --poke-green:#3FA45B;
+  --poke-yellow:#FFCB05;
+  --alert:#E3350D;
+  --ok:#3FA45B;
+  --radius:14px;
+  --shadow:0 2px 10px rgba(43,52,64,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{
+  font-family:"Zen Kaku Gothic New",sans-serif;
+  background:linear-gradient(180deg, #FFFFFF 0%, var(--bg) 40%, var(--bg-deep) 100%);
+  min-height:100vh;
+  color:var(--ink);
+  padding-bottom:90px;
+}
+h1,h2,h3,.rounded{font-family:"M PLUS Rounded 1c",sans-serif}
+
+/* ===== ヘッダー ===== */
+header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,.94);
+  backdrop-filter:blur(6px);
+  border-bottom:3px solid var(--poke-red);
+  padding:10px 16px;
+  display:flex;align-items:center;gap:12px;
+}
+header h1{color:var(--ink);font-size:1.15rem;font-weight:800;letter-spacing:.03em}
+header h1 span{color:var(--poke-red)}
+.deck-ring{
+  margin-left:auto;position:relative;width:52px;height:52px;flex-shrink:0;
+}
+.deck-ring svg{transform:rotate(-90deg)}
+.deck-ring .num{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;color:var(--ink);
+  font-family:"M PLUS Rounded 1c";font-weight:800;line-height:1;
+}
+.deck-ring .num b{font-size:.95rem}
+.deck-ring .num small{font-size:.5rem;opacity:.7}
+
+/* ===== タブ ===== */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:60;
+  display:flex;background:#FFFFFF;
+  border-top:2px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -2px 10px rgba(43,52,64,.06);
+}
+nav button{
+  flex:1;padding:12px 4px 10px;border:none;background:none;cursor:pointer;
+  color:#A6B0BA;font-family:"M PLUS Rounded 1c";font-weight:700;font-size:.8rem;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+}
+nav button .ico{font-size:1.3rem;line-height:1}
+/* 赤・緑・青のポケモンカラーをタブに割り当て */
+nav button:nth-child(1).active{color:var(--poke-blue)}
+nav button:nth-child(2).active{color:var(--poke-green)}
+nav button:nth-child(3).active{color:var(--poke-red)}
+nav button:nth-child(4).active{color:#8A5FB8}
+
+/* ===== セクション共通 ===== */
+main{max-width:920px;margin:0 auto;padding:16px}
+section{display:none}
+section.active{display:block}
+.panel{
+  background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:14px;margin-bottom:14px;
+}
+.panel h2{font-size:.95rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.panel h2 .tag{
+  font-size:.65rem;background:var(--poke-blue);color:#fff;
+  border-radius:99px;padding:2px 8px;font-weight:700;
+}
+
+/* ===== 検索 ===== */
+.search-bar{display:flex;gap:8px}
+.search-bar input{
+  flex:1;padding:12px 14px;border:2px solid var(--line);border-radius:99px;
+  font-size:1rem;font-family:inherit;background:var(--card);color:var(--ink);
+  outline:none;
+}
+.search-bar input:focus{border-color:var(--poke-blue)}
+.search-bar button{
+  padding:0 20px;border:none;border-radius:99px;cursor:pointer;
+  background:var(--poke-blue);color:#fff;font-family:"M PLUS Rounded 1c";
+  font-weight:800;font-size:.95rem;box-shadow:0 2px 0 var(--poke-blue-deep);
+}
+.search-bar button:active{transform:translateY(2px);box-shadow:none}
+.search-note{color:var(--ink-soft);font-size:.75rem;margin:8px 4px 0}
+.result-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
+  gap:10px;margin-top:14px;
+}
+.result-card{
+  background:var(--card);border-radius:10px;overflow:hidden;
+  box-shadow:var(--shadow);cursor:pointer;border:none;padding:0;
+  text-align:left;font-family:inherit;
+  transition:transform .12s;
+}
+.result-card:active{transform:scale(.96)}
+.result-card img{width:100%;display:block;aspect-ratio:63/88;object-fit:cover;background:#DCE7E2}
+.result-card .noimg{
+  width:100%;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;
+  background:#DCE7E2;color:var(--ink-soft);font-size:.7rem;padding:6px;text-align:center;
+}
+.result-card .nm{
+  display:block;font-size:.72rem;font-weight:700;padding:6px 8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);
+}
+.loading,.empty-msg{color:var(--ink-soft);text-align:center;padding:30px 10px;font-size:.9rem}
+.spinner{
+  width:34px;height:34px;margin:0 auto 10px;border-radius:50%;
+  border:4px solid var(--line);border-top-color:var(--poke-red);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== 集計 ===== */
+.count-rows{display:flex;flex-direction:column;gap:6px}
+.count-row{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.count-row .chip{
+  width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:.6rem;font-weight:800;font-family:"M PLUS Rounded 1c";
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,.18);
+}
+.count-row .lbl{width:88px;font-weight:700;flex-shrink:0}
+.count-row .bar-wrap{flex:1;height:12px;background:#EAF0ED;border-radius:99px;overflow:hidden}
+.count-row .bar{height:100%;border-radius:99px;transition:width .3s}
+.count-row .val{width:34px;text-align:right;font-family:"M PLUS Rounded 1c";font-weight:800}
+.total-line{
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:2px dashed #E2E9E5;margin-top:10px;padding-top:8px;
+  font-size:.85rem;font-weight:700;
+}
+.total-line b{font-family:"M PLUS Rounded 1c";font-size:1.05rem}
+.warn{
+  background:#FDECEA;color:var(--alert);border-radius:10px;
+  padding:8px 12px;font-size:.8rem;font-weight:700;margin-top:10px;
+}
+
+/* ===== デッキリスト ===== */
+.deck-group-title{
+  color:var(--ink-soft);font-family:"M PLUS Rounded 1c";font-weight:800;
+  font-size:.8rem;margin:14px 4px 6px;letter-spacing:.05em;
+}
+.deck-item{
+  background:var(--card);border-radius:10px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:8px;
+}
+.deck-item img{width:42px;border-radius:4px;aspect-ratio:63/88;object-fit:cover;background:#DCE7E2}
+.deck-item .thumb-no{
+  width:42px;aspect-ratio:63/88;border-radius:4px;background:#DCE7E2;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;
+}
+.deck-item .info{flex:1;min-width:0}
+.deck-item .info .nm{font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.deck-item .info .sub{font-size:.7rem;color:var(--ink-soft)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{
+  width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;
+  background:#EAF0ED;color:var(--ink);font-size:1.1rem;font-weight:800;
+  font-family:"M PLUS Rounded 1c";
+}
+.stepper button:active{background:var(--poke-yellow)}
+.stepper .cnt{
+  width:24px;text-align:center;font-family:"M PLUS Rounded 1c";
+  font-weight:800;font-size:1rem;
+}
+.over4{color:var(--alert)}
+
+/* ===== マイデッキ ===== */
+.chip-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.quick-chip{
+  border:none;border-radius:99px;padding:8px 14px;cursor:pointer;
+  font-family:"M PLUS Rounded 1c";font-weight:800;font-size:.8rem;
+  color:#fff;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15);
+}
+.quick-chip:active{transform:scale(.94)}
+.quick-chip.trainer{
+  background:var(--card);color:var(--ink);border:2px solid var(--line);
+  box-shadow:none;
+}
+.fav-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#FFF8E1;border:2px solid var(--poke-yellow);border-radius:99px;
+  padding:6px 6px 6px 12px;font-family:"M PLUS Rounded 1c";
+  font-weight:800;font-size:.8rem;color:var(--ink);cursor:pointer;
+}
+.fav-chip .fx{
+  width:20px;height:20px;border-radius:50%;border:none;cursor:pointer;
+  background:rgba(0,0,0,.08);color:var(--ink-soft);font-size:.7rem;
+  display:flex;align-items:center;justify-content:center;font-weight:800;
+}
+.fav-btn{
+  width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;
+  background:none;font-size:1.05rem;line-height:1;padding:0;
+}
+.qchip{
+  border:2px solid var(--line);background:#fff;border-radius:99px;
+  padding:7px 12px;font-size:.78rem;font-weight:700;cursor:pointer;
+  font-family:"M PLUS Rounded 1c";color:var(--ink);
+  display:flex;align-items:center;gap:5px;
+}
+.qchip:active{transform:scale(.95);background:var(--bg-deep)}
+.qchip .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.qchip .rm{
+  margin-left:2px;color:var(--ink-soft);font-size:.85rem;line-height:1;
+  padding:2px 4px;border-radius:50%;
+}
+.fav-btn{
+  width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;
+  background:#FFF6D6;color:#D9A400;font-size:1rem;flex-shrink:0;
+}
+.save-row{
+  display:flex;align-items:center;gap:8px;
+  border:2px solid var(--line);border-radius:10px;
+  padding:8px 10px;margin-bottom:8px;
+}
+.save-row .sv-info{flex:1;min-width:0}
+.save-row .sv-name{font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.save-row .sv-meta{font-size:.68rem;color:var(--ink-soft)}
+.save-row button{
+  border:none;border-radius:8px;padding:8px 10px;cursor:pointer;
+  font-family:"M PLUS Rounded 1c";font-weight:800;font-size:.75rem;
+}
+.save-row .sv-open{background:var(--poke-blue);color:#fff}
+.save-row .sv-del{background:#F1F4F7;color:var(--ink-soft)}
+
+/* ===== ボタン類 ===== */
+.btn-line{display:flex;gap:8px;margin-top:6px}
+.btn{
+  flex:1;padding:12px;border:none;border-radius:99px;cursor:pointer;
+  font-family:"M PLUS Rounded 1c";font-weight:800;font-size:.95rem;
+}
+.btn.primary{background:var(--poke-red);color:#fff;box-shadow:0 3px 0 var(--poke-red-deep)}
+.btn.primary:active{transform:translateY(3px);box-shadow:none}
+.btn.ghost{background:var(--card);color:var(--ink-soft);border:2px solid var(--line)}
+
+/* ===== 手札 ===== */
+.hand-stage{min-height:220px}
+.hand-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
+  gap:10px;margin-top:14px;
+}
+.hand-card{
+  border-radius:8px;overflow:hidden;box-shadow:var(--shadow);
+  animation:flip .45s cubic-bezier(.2,.8,.3,1.1) backwards;
+}
+.hand-card img{width:100%;display:block;aspect-ratio:63/88;object-fit:cover;background:#DCE7E2}
+.hand-card .txt{
+  width:100%;aspect-ratio:63/88;background:var(--card);
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:.7rem;font-weight:700;padding:6px;
+}
+@keyframes flip{
+  from{transform:rotateY(90deg) scale(.8);opacity:0}
+  to{transform:rotateY(0) scale(1);opacity:1}
+}
+/* ===== サイド ===== */
+.sim-head{
+  font-family:"M PLUS Rounded 1c";font-weight:800;font-size:.9rem;
+  margin:16px 0 8px;display:flex;align-items:center;gap:8px;
+}
+.peek-btn{
+  margin-left:auto;border:2px solid var(--line);background:var(--card);
+  border-radius:99px;padding:5px 12px;cursor:pointer;
+  font-family:"M PLUS Rounded 1c";font-weight:800;font-size:.72rem;color:var(--ink-soft);
+}
+.peek-btn:active{background:var(--poke-yellow);color:var(--ink)}
+.prize-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:8px;
+}
+.prize-card{
+  border-radius:8px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;
+  aspect-ratio:63/88;position:relative;
+  transition:transform .12s;
+}
+.prize-card:active{transform:scale(.94)}
+.prize-card img{width:100%;height:100%;display:block;object-fit:cover;background:#E8EDF2}
+.prize-card .txt{
+  width:100%;height:100%;background:var(--card);
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:.62rem;font-weight:700;padding:4px;line-height:1.25;
+}
+.prize-card.open{animation:flip .35s cubic-bezier(.2,.8,.3,1.1)}
+/* 裏面：モンスターボール風 */
+.prize-card.back{
+  background:linear-gradient(160deg,#F05A3C 0%,var(--poke-red) 45%,#FFFFFF 45%,#F2F5F8 100%);
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(0,0,0,.08);
+}
+.prize-card.back .ball{
+  width:38%;aspect-ratio:1;border-radius:50%;
+  background:#FFFFFF;border:3px solid #2B3440;
+  box-shadow:0 0 0 3px rgba(255,255,255,.6);
+}
+.prize-card.back .no{
+  position:absolute;right:4px;bottom:2px;
+  font-family:"M PLUS Rounded 1c";font-weight:800;font-size:.62rem;
+  color:var(--ink-soft);
+}
+.prize-note{font-size:.7rem;color:var(--ink-soft);margin:8px 2px 0;text-align:center}
+.rest-line{
+  margin-top:12px;text-align:center;background:var(--bg);
+  border-radius:10px;padding:10px;font-size:.82rem;font-weight:700;color:var(--ink-soft);
+}
+.rest-line b{font-family:"M PLUS Rounded 1c";font-size:1.05rem;color:var(--ink)}
+@media(max-width:420px){
+  .prize-grid{grid-template-columns:repeat(3,1fr)}
+}
+
+.mulligan{
+  margin-top:12px;text-align:center;font-family:"M PLUS Rounded 1c";
+  font-weight:800;border-radius:10px;padding:10px;
+}
+.mulligan.bad{background:#FDECEA;color:var(--alert)}
+.mulligan.good{background:#E8F5EE;color:var(--ok)}
+.hand-prob{
+  margin-top:10px;display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg);border-radius:10px;padding:8px 12px;
+  font-size:.8rem;color:var(--ink-soft);
+}
+.hand-prob b{font-family:"M PLUS Rounded 1c";color:#8A5FB8;font-size:1rem}
+
+/* ===== かくりつ（欲しい手札パターン） ===== */
+.pattern-check-row{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;
+  background:var(--card);border-radius:10px;box-shadow:var(--shadow);margin-bottom:6px;
+}
+.pattern-check-row input[type=checkbox]{width:20px;height:20px;flex-shrink:0;accent-color:var(--poke-red)}
+.pattern-check-row img{width:34px;border-radius:4px;aspect-ratio:63/88;object-fit:cover;background:#DCE7E2}
+.pattern-check-row .thumb-no{
+  width:34px;aspect-ratio:63/88;border-radius:4px;background:#DCE7E2;
+  display:flex;align-items:center;justify-content:center;font-size:.85rem;
+}
+.pattern-check-row .info{flex:1;min-width:0}
+.pattern-check-row .nm{font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pattern-check-row .sub{font-size:.68rem;color:var(--ink-soft)}
+.pattern-card{
+  background:var(--card);border-radius:10px;box-shadow:var(--shadow);
+  padding:10px 12px;margin-bottom:10px;
+}
+.pattern-card .pt-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.pattern-card .pt-name{font-weight:800;font-family:"M PLUS Rounded 1c";font-size:.95rem;flex:1;min-width:0}
+.pattern-card .pt-prob{font-family:"M PLUS Rounded 1c";font-weight:800;font-size:1.1rem;color:#8A5FB8;flex-shrink:0}
+.pattern-card .pt-cards{font-size:.75rem;color:var(--ink-soft);margin-bottom:8px}
+.pattern-card .pt-del{
+  border:none;background:#F1F4F7;color:var(--ink-soft);border-radius:8px;
+  padding:6px 10px;font-family:"M PLUS Rounded 1c";font-weight:700;font-size:.72rem;cursor:pointer;
+}
+.pattern-result{margin-top:8px}
+.slot-chip-row{
+  display:flex;align-items:center;gap:8px;background:#F3EEF9;border:2px solid #E4D9F2;
+  border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:.78rem;
+}
+.slot-chip-row .slot-no{
+  font-family:"M PLUS Rounded 1c";font-weight:800;font-size:.68rem;color:#8A5FB8;
+  background:#fff;border-radius:99px;padding:2px 8px;flex-shrink:0;
+}
+.slot-chip-row .slot-names{flex:1;color:var(--ink);line-height:1.4}
+.slot-chip-row .slot-rm{
+  border:none;background:rgba(0,0,0,.08);color:var(--ink-soft);border-radius:50%;
+  width:22px;height:22px;flex-shrink:0;font-weight:800;cursor:pointer;font-size:.85rem;
+}
+.pattern-card .pt-slot-line{font-size:.75rem;color:var(--ink-soft);margin-bottom:2px;line-height:1.5}
+
+/* ===== 手動追加ダイアログ ===== */
+dialog{
+  border:none;border-radius:var(--radius);padding:18px;max-width:340px;width:90%;
+  box-shadow:0 10px 40px rgba(0,0,0,.4);font-family:inherit;
+}
+dialog::backdrop{background:rgba(10,30,25,.6)}
+dialog h3{font-size:1rem;margin-bottom:12px}
+dialog label{display:block;font-size:.75rem;font-weight:700;margin:10px 0 4px;color:var(--ink-soft)}
+dialog input,dialog select{
+  width:100%;padding:10px;border:2px solid #DCE7E2;border-radius:8px;
+  font-size:.95rem;font-family:inherit;background:#fff;
+}
+.toast{
+  position:fixed;left:50%;bottom:100px;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;border-radius:99px;padding:10px 20px;
+  font-size:.85rem;font-weight:700;opacity:0;pointer-events:none;
+  transition:.25s;z-index:99;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(min-width:760px){
+  #view-search .result-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+  nav{position:sticky;bottom:auto;top:74px;max-width:920px;margin:0 auto;
+      border-radius:99px;border:2px solid var(--line);overflow:hidden}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ぽけ<span>でっき</span></h1>
+  <div class="deck-ring">
+    <svg width="52" height="52" viewBox="0 0 52 52">
+      <circle cx="26" cy="26" r="22" fill="none" stroke="#E4E9EE" stroke-width="5"/>
+      <circle id="ringBar" cx="26" cy="26" r="22" fill="none" stroke="var(--poke-red)"
+        stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+    </svg>
+    <div class="num"><b id="ringNum">0</b><small>/60</small></div>
+  </div>
+</header>
+
+<nav>
+  <button id="tab-search" class="active" onclick="showView('search')"><span class="ico">🔍</span>さがす</button>
+  <button id="tab-deck" onclick="showView('deck')"><span class="ico">🎴</span>デッキ</button>
+  <button id="tab-hand" onclick="showView('hand')"><span class="ico">✋</span>てふだ</button>
+  <button id="tab-prob" onclick="showView('prob')"><span class="ico">🎯</span>かくりつ</button>
+</nav>
+
+<main>
+
+<!-- ===== さがす ===== -->
+<section id="view-search" class="active">
+  <div class="search-bar">
+    <input id="searchInput" type="search" placeholder="カード名で検索（例：ピカチュウ）" enterkeyhint="search">
+    <button onclick="doSearch()">検索</button>
+  </div>
+  <p class="search-note">TCGdex API（日本語）を検索します。カードをタップでデッキに追加。見つからないカードは<a href="#" onclick="openManual();return false" style="color:var(--poke-blue);font-weight:700">手動追加</a>できます。</p>
+  <div class="panel" style="margin-top:14px">
+    <h2>よく使うカード <span class="tag" style="background:var(--poke-yellow);color:var(--ink)">タップで追加</span></h2>
+    <div class="chip-wrap" id="presetEnergyArea"></div>
+    <div class="chip-wrap" id="presetCardArea"></div>
+    <div class="chip-wrap" id="favArea"></div>
+    <p style="font-size:.7rem;color:var(--ink-soft)">デッキ画面でカードの ☆ を押すと、ここに登録できます（★の × で解除）</p>
+  </div>
+  <div id="searchResults"></div>
+</section>
+
+<!-- ===== デッキ ===== -->
+<section id="view-deck">
+  <div class="panel">
+    <h2>デッキ集計 <span class="tag" id="totalTag">0 / 60</span></h2>
+    <div id="statsArea"></div>
+    <div id="warnArea"></div>
+  </div>
+  <div class="panel">
+    <h2>マイデッキ <span class="tag" style="background:var(--poke-green)">ほぞん</span></h2>
+    <div class="search-bar" style="margin-bottom:10px">
+      <input id="deckNameInput" type="text" placeholder="デッキ名（例：リザードンex）">
+      <button style="background:var(--poke-green);box-shadow:0 2px 0 #2E7A44" onclick="saveNamedDeck()">保存</button>
+    </div>
+    <div id="savedList"></div>
+    <div class="btn-line">
+      <button class="btn ghost" onclick="exportDeck()">ファイルに書き出し</button>
+      <button class="btn ghost" onclick="document.getElementById('importFile').click()">ファイルから読み込み</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importDeck(this)">
+  </div>
+  <div class="btn-line">
+    <button class="btn primary" style="background:var(--poke-blue);box-shadow:0 3px 0 var(--poke-blue-deep)" onclick="openTextDialog()">📋 デッキをテキストでコピー</button>
+  </div>
+  <div class="btn-line">
+    <button class="btn ghost" onclick="openManual()">＋ 手動追加</button>
+    <button class="btn ghost" onclick="clearDeck()">デッキを空にする</button>
+  </div>
+  <div id="deckList"></div>
+</section>
+
+<!-- ===== テキストコピー ===== -->
+<dialog id="textDialog">
+  <h3>デッキリスト（テキスト）</h3>
+  <textarea id="deckTextArea" readonly
+    style="width:100%;height:240px;border:2px solid #DCE7E2;border-radius:8px;
+           padding:10px;font-size:.8rem;font-family:inherit;resize:none;
+           background:#F7F9FB;color:var(--ink)"></textarea>
+  <div class="btn-line" style="margin-top:12px">
+    <button class="btn ghost" style="color:var(--ink-soft);border-color:#DCE7E2" onclick="textDialog.close()">とじる</button>
+    <button class="btn primary" onclick="copyDeckText()">コピーする</button>
+  </div>
+</dialog>
+
+<!-- ===== てふだ ===== -->
+<section id="view-hand">
+  <div class="panel hand-stage">
+    <h2>手札シミュレーター</h2>
+    <p style="font-size:.8rem;color:var(--ink-soft)">デッキをシャッフルして、手札7枚・サイド6枚・トップドロー1枚を配ります。</p>
+    <div class="btn-line">
+      <button class="btn primary" onclick="drawHand()">シャッフルして配る！</button>
+    </div>
+    <div id="handArea"></div>
+  </div>
+</section>
+
+<!-- ===== かくりつ ===== -->
+<section id="view-prob">
+  <div class="panel">
+    <h2>欲しい手札パターンを登録 <span class="tag" style="background:#8A5FB8">組み合わせ計算</span></h2>
+    <p style="font-size:.78rem;color:var(--ink-soft);margin-bottom:10px">デッキの中からカードにチェックを入れて「候補グループを追加」すると、その中の<b>どれか1枚あればOK</b>な"枠"になります（例：ルナトーン／ポケパッド／ファイトゴングをまとめて1枠に）。枠をいくつか作ってから、名前を付けて登録してください。確率は<b>初手8枚（手札7枚＋トップドロー1枚）</b>で計算します。</p>
+    <div id="patternChecklist"></div>
+    <div class="btn-line" style="margin-top:8px">
+      <button class="btn ghost" onclick="addSlotFromSelection()">＋ この候補をひとつの枠として追加</button>
+    </div>
+    <div class="deck-group-title" style="margin-top:16px">作成中のパターンの枠</div>
+    <div id="pendingSlotsArea"></div>
+    <div class="search-bar" style="margin-top:12px">
+      <input id="patternNameInput" type="text" placeholder="パターン名（例：初手でルナソルサイクル！）">
+      <button style="background:#8A5FB8;box-shadow:0 2px 0 #6B4590" onclick="savePattern()">登録</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>登録したパターン</h2>
+    <div id="patternList"></div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===== 手動追加 ===== -->
+<dialog id="manualDialog">
+  <h3>カードを手動追加</h3>
+  <label>カード名</label>
+  <input id="mName" type="text" placeholder="例：基本炎エネルギー">
+  <label>種類</label>
+  <select id="mKind" onchange="onManualKindChange()">
+    <option value="pokemon">ポケモン</option>
+    <option value="item">グッズ</option>
+    <option value="supporter">サポート</option>
+    <option value="stadium">スタジアム</option>
+    <option value="tool">ポケモンのどうぐ</option>
+    <option value="basicEnergy">基本エネルギー</option>
+    <option value="specialEnergy">特殊エネルギー</option>
+    <option value="other">その他</option>
+  </select>
+  <div id="mPokemonExtra">
+    <label>属性（タイプ）</label>
+    <select id="mType"></select>
+    <label>進化段階</label>
+    <select id="mStage">
+      <option value="たね">たね</option>
+      <option value="1進化">1進化</option>
+      <option value="2進化">2進化</option>
+      <option value="その他">その他</option>
+    </select>
+  </div>
+  <div id="mEnergyExtra" style="display:none">
+    <label>エネルギーの属性</label>
+    <select id="mEnergyType"></select>
+  </div>
+  <div class="btn-line" style="margin-top:16px">
+    <button class="btn ghost" style="color:var(--ink-soft);border-color:#DCE7E2" onclick="manualDialog.close()">やめる</button>
+    <button class="btn primary" onclick="addManual()">追加する</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   ぽけでっき — TCGdex API 連携デッキ構築プロトタイプ
+   API: https://api.tcgdex.net/v2/ja/...
+   画像: card.image + "/low.webp"（一覧） "/high.webp"（拡大用）
+========================================================= */
+const API_ROOT = "https://api.tcgdex.net/v2"; // /{lang}/cards... 日本語→英語の順で使う
+
+/* ---- タイプ表示名と色（APIが英語で返す場合の変換も兼ねる） ---- */
+const TYPE_MAP = {
+  "Grass":"草","Fire":"炎","Water":"水","Lightning":"雷","Psychic":"超",
+  "Fighting":"闘","Darkness":"悪","Metal":"鋼","Dragon":"ドラゴン",
+  "Colorless":"無色","Fairy":"フェアリー"
+};
+const TYPE_COLORS = {
+  "草":"#5FA83E","炎":"#E5602E","水":"#3D8FD1","雷":"#E8B93A","超":"#9A63A8",
+  "闘":"#B45A34","悪":"#3E4750","鋼":"#8A94A0","ドラゴン":"#B79A46",
+  "無色":"#B9B4A5","フェアリー":"#D97BA8","その他":"#7C8B85"
+};
+const TYPE_ORDER = ["草","炎","水","雷","超","闘","悪","鋼","ドラゴン","無色","フェアリー","その他"];
+
+const STAGE_MAP = { "Basic":"たね","Stage1":"1進化","Stage2":"2進化",
+  "たね":"たね","1進化":"1進化","2進化":"2進化" };
+
+const TRAINER_MAP = {
+  "Item":"グッズ","Supporter":"サポート","Stadium":"スタジアム","Tool":"ポケモンのどうぐ",
+  "グッズ":"グッズ","サポート":"サポート","スタジアム":"スタジアム","ポケモンのどうぐ":"ポケモンのどうぐ"
+};
+
+/* ---- デッキ状態 ----
+ entry = { id, name, image, group, type, stage, trainer, energyKind, count }
+ group: pokemon / trainer / energy / other
+------------------------------------------------------- */
+let deck = [];
+const SAVE_KEY = "pokedeck_v1";
+
+function loadDeck(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){ deck = JSON.parse(raw); }
+  }catch(e){ deck = []; }
+}
+function saveDeck(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(deck)); }catch(e){}
+}
+function totalCount(){
+  let sum = 0;
+  for(const c of deck){ sum += c.count; }
+  return sum;
+}
+
+/* ---- カード分類 ---- */
+function classifyCard(card){
+  const entry = {
+    id: card.id,
+    name: card.name,
+    image: card.image ? card.image + "/low.webp" : "",
+    group: "other",
+    type: "その他",
+    stage: "その他",
+    trainer: "その他",
+    energyKind: "",
+    count: 1
+  };
+
+  if(card.category === "Pokemon" || card.category === "ポケモン"){
+    entry.group = "pokemon";
+    if(card.types && card.types.length > 0){
+      const t = card.types[0];
+      entry.type = TYPE_MAP[t] || t;
+    }
+    if(card.stage){
+      entry.stage = STAGE_MAP[card.stage] || "その他";
+    }else{
+      entry.stage = "たね"; // stage無し＝たね扱いが実態に近い
+    }
+  }
+  else if(card.category === "Trainer" || card.category === "トレーナー"){
+    entry.group = "trainer";
+    entry.trainer = TRAINER_MAP[card.trainerType] || "その他";
+  }
+  else if(card.category === "Energy" || card.category === "エネルギー"){
+    entry.group = "energy";
+    const et = card.energyType || "";
+    // energyTypeが無いデータもあるので、カード名の「基本〜エネルギー」でも判定する
+    if(et === "Basic" || et === "基本" || /^基本.*エネルギー/.test(card.name || "")){
+      entry.energyKind = "基本";
+    }else{
+      entry.energyKind = "特殊";
+    }
+    // エネルギーの色をカード名から推定（日本語：基本炎エネルギー／英語：Fire Energy）
+    for(const jp of TYPE_ORDER){
+      if(jp !== "その他" && card.name && card.name.includes(jp)){
+        entry.type = jp; break;
+      }
+    }
+    if(entry.type === "その他" && card.name){
+      for(const en in TYPE_MAP){
+        if(card.name.includes(en)){ entry.type = TYPE_MAP[en]; break; }
+      }
+    }
+  }
+  return entry;
+}
+
+/* ---- デッキ操作 ---- */
+function isBasicEnergy(entry){
+  if(entry.group !== "energy") return false;
+  if(entry.energyKind === "基本") return true;
+  // 過去に誤分類されたデータ対策：名前でも判定
+  return /^基本.*エネルギー/.test(entry.name || "");
+}
+/* 保存済みデッキの分類を直す（基本エネが特殊扱いになっていた不具合の修正） */
+function migrateDeck(){
+  for(const c of deck){
+    if(c.group === "energy" && /^基本.*エネルギー/.test(c.name || "")){
+      c.energyKind = "基本";
+      if(c.type === "その他"){
+        for(const jp of TYPE_ORDER){
+          if(jp !== "その他" && c.name.includes(jp)){ c.type = jp; break; }
+        }
+      }
+    }
+  }
+}
+function addToDeck(entry){
+  if(totalCount() >= 60){
+    showToast("デッキはもう60枚です！");
+    return;
+  }
+  const found = deck.find(c => c.id === entry.id || (c.name === entry.name && c.group === entry.group));
+  if(found){
+    found.count += 1;
+    if(found.count > 4 && !isBasicEnergy(found)){
+      showToast("同名カードが4枚を超えています⚠️");
+    }else{
+      showToast(found.name + " を追加（" + found.count + "枚目）");
+    }
+  }else{
+    deck.push(entry);
+    showToast(entry.name + " を追加！");
+  }
+  saveDeck();
+  renderAll();
+}
+function changeCount(index, delta){
+  const c = deck[index];
+  if(!c) return;
+  if(delta > 0 && totalCount() >= 60){
+    showToast("デッキはもう60枚です！");
+    return;
+  }
+  c.count += delta;
+  if(c.count <= 0){ deck.splice(index, 1); }
+  saveDeck();
+  renderAll();
+}
+function clearDeck(){
+  if(deck.length === 0) return;
+  if(confirm("デッキを空にしますか？")){
+    deck = [];
+    saveDeck();
+    renderAll();
+  }
+}
+
+/* ---- よく使うカード（プリセット＆お気に入り） ---- */
+const FAV_KEY = "pokedeck_favs_v1";
+const BASIC_ENERGY_TYPES = ["草","炎","水","雷","超","闘","悪","鋼"];
+const PRESET_CARDS = [
+  { name:"リーリエの決心",   group:"trainer", trainer:"サポート" },
+  { name:"ボスの指令",       group:"trainer", trainer:"サポート" },
+  { name:"博士の研究",       group:"trainer", trainer:"サポート" },
+  { name:"ポケモン入れ替え", group:"trainer", trainer:"グッズ" },
+  { name:"ネストボール",     group:"trainer", trainer:"グッズ" },
+  { name:"ハイパーボール",   group:"trainer", trainer:"グッズ" },
+  { name:"風船",             group:"trainer", trainer:"ポケモンのどうぐ" }
+];
+
+function makeEntry(partial){
+  return Object.assign({
+    id: "quick_" + partial.name,
+    name: "", image: "",
+    group: "other", type: "その他", stage: "その他",
+    trainer: "その他", energyKind: "", count: 1
+  }, partial);
+}
+function addBasicEnergy(type){
+  addToDeck(makeEntry({
+    id: "quick_energy_" + type,
+    name: "基本" + type + "エネルギー",
+    group: "energy", energyKind: "基本", type: type
+  }));
+}
+function addPreset(index){
+  addToDeck(makeEntry(PRESET_CARDS[index]));
+}
+
+let favCards = null;
+function getFavCards(){
+  if(favCards) return favCards;
+  try{ favCards = JSON.parse(localStorage.getItem(FAV_KEY)); }catch(e){}
+  if(!Array.isArray(favCards)) favCards = [];
+  return favCards;
+}
+function saveFavCards(){
+  try{ localStorage.setItem(FAV_KEY, JSON.stringify(getFavCards())); }catch(e){}
+}
+function isFav(name){
+  return getFavCards().some(f => f.name === name);
+}
+function toggleFav(deckIndex){
+  const c = deck[deckIndex];
+  if(!c) return;
+  const favs = getFavCards();
+  const at = favs.findIndex(f => f.name === c.name);
+  if(at >= 0){
+    favs.splice(at, 1);
+    showToast("お気に入りから外しました");
+  }else{
+    const tpl = JSON.parse(JSON.stringify(c));
+    tpl.count = 1;
+    favs.push(tpl);
+    showToast("「" + c.name + "」をお気に入りに★");
+  }
+  saveFavCards();
+  renderQuickArea();
+  renderDeckList();
+}
+function addFav(index){
+  const favs = getFavCards();
+  if(!favs[index]) return;
+  const entry = JSON.parse(JSON.stringify(favs[index]));
+  entry.count = 1;
+  addToDeck(entry);
+}
+function removeFav(index){
+  const favs = getFavCards();
+  if(!favs[index]) return;
+  favs.splice(index, 1);
+  saveFavCards();
+  renderQuickArea();
+  renderDeckList();
+}
+function renderQuickArea(){
+  /* 基本エネルギー */
+  let html = "";
+  for(const t of BASIC_ENERGY_TYPES){
+    html += '<button class="quick-chip" style="background:' + TYPE_COLORS[t] + '" '
+          + 'onclick="addBasicEnergy(\'' + t + '\')">' + t + 'エネ</button>';
+  }
+  document.getElementById("presetEnergyArea").innerHTML = html;
+  /* 定番トレーナーズ */
+  html = "";
+  PRESET_CARDS.forEach((p, i) => {
+    html += '<button class="quick-chip trainer" onclick="addPreset(' + i + ')">'
+          + escapeHtml(p.name) + '</button>';
+  });
+  document.getElementById("presetCardArea").innerHTML = html;
+  /* お気に入り */
+  html = "";
+  getFavCards().forEach((f, i) => {
+    html += '<span class="fav-chip" onclick="addFav(' + i + ')">★ ' + escapeHtml(f.name)
+          + '<button class="fx" onclick="event.stopPropagation();removeFav(' + i + ')">×</button></span>';
+  });
+  document.getElementById("favArea").innerHTML = html;
+}
+
+/* ---- マイデッキ（名前を付けて複数保存） ---- */
+const SAVES_KEY = "pokedeck_saves_v1";
+let saveNames = []; // 描画時のインデックス参照用
+
+function getSaves(){
+  try{ return JSON.parse(localStorage.getItem(SAVES_KEY)) || {}; }
+  catch(e){ return {}; }
+}
+function setSaves(saves){
+  try{ localStorage.setItem(SAVES_KEY, JSON.stringify(saves)); }
+  catch(e){ showToast("保存に失敗しました（容量オーバーかも）"); }
+}
+function saveNamedDeck(){
+  const input = document.getElementById("deckNameInput");
+  const name = input.value.trim();
+  if(!name){ showToast("デッキ名を入れてね"); return; }
+  if(deck.length === 0){ showToast("デッキが空です"); return; }
+  const saves = getSaves();
+  const exists = !!saves[name];
+  saves[name] = { deck: JSON.parse(JSON.stringify(deck)), updated: Date.now() };
+  setSaves(saves);
+  renderSavedList();
+  showToast(exists ? "「" + name + "」を上書き保存！" : "「" + name + "」を保存！");
+}
+function loadNamedDeck(index){
+  const name = saveNames[index];
+  const saves = getSaves();
+  if(!saves[name]) return;
+  if(deck.length > 0 && !confirm("今のデッキを「" + name + "」に置き換えます。いい？")) return;
+  deck = JSON.parse(JSON.stringify(saves[name].deck));
+  migrateDeck();
+  saveDeck();
+  renderAll();
+  document.getElementById("deckNameInput").value = name;
+  showToast("「" + name + "」をひらきました");
+}
+function deleteNamedDeck(index){
+  const name = saveNames[index];
+  if(!confirm("「" + name + "」を削除しますか？")) return;
+  const saves = getSaves();
+  delete saves[name];
+  setSaves(saves);
+  renderSavedList();
+  showToast("削除しました");
+}
+function renderSavedList(){
+  const area = document.getElementById("savedList");
+  const saves = getSaves();
+  saveNames = Object.keys(saves).sort((a, b) => saves[b].updated - saves[a].updated);
+  if(saveNames.length === 0){
+    area.innerHTML = '<div style="font-size:.78rem;color:var(--ink-soft);padding:4px 2px 8px">保存したデッキはまだありません</div>';
+    return;
+  }
+  let html = "";
+  saveNames.forEach((name, i) => {
+    const s = saves[name];
+    let cnt = 0;
+    for(const c of s.deck){ cnt += c.count; }
+    const d = new Date(s.updated);
+    const date = (d.getMonth() + 1) + "/" + d.getDate() + " "
+               + d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+    html += '<div class="save-row">'
+          + '<div class="sv-info"><div class="sv-name">' + escapeHtml(name) + '</div>'
+          + '<div class="sv-meta">' + cnt + '枚 ・ ' + date + '</div></div>'
+          + '<button class="sv-open" onclick="loadNamedDeck(' + i + ')">ひらく</button>'
+          + '<button class="sv-del" onclick="deleteNamedDeck(' + i + ')">削除</button>'
+          + '</div>';
+  });
+  area.innerHTML = html;
+}
+
+/* ---- ファイル書き出し・読み込み（バックアップ用） ---- */
+function exportDeck(){
+  const data = {
+    app: "pokedeck",
+    version: 1,
+    exported: new Date().toISOString(),
+    currentDeck: deck,
+    savedDecks: getSaves()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "pokedeck_backup.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast("書き出しました！");
+}
+function importDeck(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(Array.isArray(data)){
+        // デッキ配列だけのシンプルなJSONにも対応
+        deck = data;
+      }else if(data.app === "pokedeck"){
+        if(data.savedDecks){
+          const saves = getSaves();
+          Object.assign(saves, data.savedDecks); // 同名は上書き
+          setSaves(saves);
+        }
+        if(Array.isArray(data.currentDeck)) deck = data.currentDeck;
+      }else{
+        showToast("このファイルは読み込めません");
+        return;
+      }
+      migrateDeck();
+      saveDeck();
+      renderAll();
+      showToast("読み込みました！");
+    }catch(e){
+      showToast("読み込みに失敗しました🥲");
+    }
+  };
+  reader.readAsText(file);
+  input.value = "";
+}
+
+/* ---- ポケモン名 日本語→英語 変換辞書（PokeAPIの公開データを利用） ---- */
+const DICT_KEY = "pokedeck_namedict_v1";
+const DICT_URL = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon_species_names.csv";
+let nameDict = null;
+
+async function loadNameDict(){
+  if(nameDict) return nameDict;
+  try{
+    const cached = localStorage.getItem(DICT_KEY);
+    if(cached){ nameDict = JSON.parse(cached); return nameDict; }
+  }catch(e){}
+  const res = await fetch(DICT_URL);
+  if(!res.ok) throw new Error("辞書取得失敗 HTTP " + res.status);
+  const text = await res.text();
+  const ja = {}, en = {};
+  for(const line of text.split("\n")){
+    const cols = line.split(",");
+    if(cols.length < 3) continue;
+    const sid = cols[0], lang = cols[1], name = cols[2];
+    if(lang === "1") ja[sid] = name;        // 日本語（カナ）
+    else if(lang === "9") en[sid] = name;   // 英語
+  }
+  nameDict = {};
+  for(const sid in ja){
+    if(en[sid]) nameDict[ja[sid]] = en[sid];
+  }
+  try{ localStorage.setItem(DICT_KEY, JSON.stringify(nameDict)); }catch(e){}
+  return nameDict;
+}
+
+/* 検索語から英語名を引く（「リザードンex」→「Charizard」のように末尾の型番号は落とす） */
+function toEnglishName(query, dict){
+  const q = query.replace(/\s+/g, "");
+  if(dict[q]) return dict[q];
+  const base = q.replace(/(ex|ＥＸ|EX|GX|VMAX|VSTAR|V)$/i, "");
+  if(base !== q && dict[base]) return dict[base];
+  return null;
+}
+
+/* ---- 検索 ---- */
+let searching = false;
+async function doSearch(){
+  const q = document.getElementById("searchInput").value.trim();
+  const area = document.getElementById("searchResults");
+  if(!q){ area.innerHTML = ""; return; }
+  if(searching) return;
+  searching = true;
+  area.innerHTML = '<div class="loading"><div class="spinner"></div>カードを探しています…</div>';
+  try{
+    /* 1. まず日本語データを検索 */
+    let cards = await searchCards("ja", q);
+    let lang = "ja";
+    let note = "";
+
+    /* 2. 見つからなければ英語版へフォールバック */
+    if(cards.length === 0){
+      area.innerHTML = '<div class="loading"><div class="spinner"></div>日本語データに無いので英語版を探しています…</div>';
+      let enQuery = q;
+      try{
+        const dict = await loadNameDict();
+        const enName = toEnglishName(q, dict);
+        if(enName) enQuery = enName;
+      }catch(e){ /* 辞書が取れなくても英語綴りならそのまま検索できる */ }
+      cards = await searchCards("en", enQuery);
+      lang = "en";
+      note = '<p class="search-note">🌏 英語版のカードです（「' + escapeHtml(enQuery) + '」で検索）。日本の新弾は海外未発売のため英語データにも無いことがあります。その場合は手動追加してね。</p>';
+    }
+
+    if(cards.length === 0){
+      area.innerHTML = '<div class="empty-msg">日本語版・英語版どちらにも見つかりませんでした🥲<br>最新弾のカードかも。手動追加してください。</div>';
+      return;
+    }
+    const shown = cards.slice(0, 60);
+    let html = note + '<div class="result-grid">';
+    for(const c of shown){
+      const img = c.image
+        ? '<img loading="lazy" src="' + c.image + '/low.webp" alt="">'
+        : '<div class="noimg">' + escapeHtml(c.name) + '</div>';
+      html += '<button class="result-card" onclick="pickCard(\'' + c.id + '\',\'' + lang + '\')">'
+            + img + '<span class="nm">' + escapeHtml(c.name) + '</span></button>';
+    }
+    html += '</div>';
+    if(cards.length > 60){
+      html += '<div class="empty-msg">ほか ' + (cards.length - 60) + ' 件あります。検索語を増やして絞りこんでね。</div>';
+    }
+    area.innerHTML = html;
+  }catch(e){
+    area.innerHTML = '<div class="empty-msg">通信エラーです。時間をおいて試すか、手動追加してください。'
+      + '<br><span style="font-size:.68rem;opacity:.7">詳細: ' + escapeHtml(e.message || e) + '</span>'
+      + '<br><span style="font-size:.68rem;opacity:.7">※Claudeのプレビュー内では外部APIがブロックされます。ファイルをブラウザで直接開いてください。</span></div>';
+  }finally{
+    searching = false;
+  }
+}
+
+async function searchCards(lang, query){
+  const res = await fetch("https://api.tcgdex.net/v2/" + lang + "/cards?name=" + encodeURIComponent(query));
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const cards = await res.json();
+  return Array.isArray(cards) ? cards : [];
+}
+
+/* カード詳細を取得して分類→追加 */
+async function pickCard(id, lang){
+  showToast("カード情報を取得中…");
+  try{
+    const res = await fetch("https://api.tcgdex.net/v2/" + (lang || "ja") + "/cards/" + encodeURIComponent(id));
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const card = await res.json();
+    addToDeck(classifyCard(card));
+  }catch(e){
+    showToast("取得に失敗しました🥲");
+  }
+}
+
+/* ---- 手動追加 ---- */
+const manualDialog = document.getElementById("manualDialog");
+function openManual(){
+  const typeSel = document.getElementById("mType");
+  const energySel = document.getElementById("mEnergyType");
+  if(typeSel.options.length === 0){
+    for(const t of TYPE_ORDER){
+      typeSel.add(new Option(t, t));
+      if(t !== "その他") energySel.add(new Option(t, t));
+    }
+  }
+  onManualKindChange();
+  manualDialog.showModal();
+}
+function onManualKindChange(){
+  const kind = document.getElementById("mKind").value;
+  document.getElementById("mPokemonExtra").style.display = (kind === "pokemon") ? "" : "none";
+  document.getElementById("mEnergyExtra").style.display = (kind === "basicEnergy") ? "" : "none";
+}
+function addManual(){
+  const name = document.getElementById("mName").value.trim();
+  if(!name){ showToast("カード名を入れてね"); return; }
+  const kind = document.getElementById("mKind").value;
+  const entry = {
+    id: "manual_" + Date.now(),
+    name: name, image: "",
+    group: "other", type: "その他", stage: "その他",
+    trainer: "その他", energyKind: "", count: 1
+  };
+  if(kind === "pokemon"){
+    entry.group = "pokemon";
+    entry.type = document.getElementById("mType").value;
+    entry.stage = document.getElementById("mStage").value;
+  }else if(kind === "item"){ entry.group = "trainer"; entry.trainer = "グッズ"; }
+  else if(kind === "supporter"){ entry.group = "trainer"; entry.trainer = "サポート"; }
+  else if(kind === "stadium"){ entry.group = "trainer"; entry.trainer = "スタジアム"; }
+  else if(kind === "tool"){ entry.group = "trainer"; entry.trainer = "ポケモンのどうぐ"; }
+  else if(kind === "basicEnergy"){
+    entry.group = "energy"; entry.energyKind = "基本";
+    entry.type = document.getElementById("mEnergyType").value;
+  }
+  else if(kind === "specialEnergy"){ entry.group = "energy"; entry.energyKind = "特殊"; }
+  manualDialog.close();
+  document.getElementById("mName").value = "";
+  addToDeck(entry);
+}
+
+/* ---- 集計 ---- */
+function buildStats(){
+  const typeCounts = {};    // ポケモン属性
+  const stageCounts = { "たね":0, "1進化":0, "2進化":0, "その他":0 };
+  const trainerCounts = { "グッズ":0, "サポート":0, "スタジアム":0, "ポケモンのどうぐ":0, "その他":0 };
+  const basicEnergy = {};   // 色ごと
+  let specialEnergy = 0;
+  let pokemonTotal = 0, trainerTotal = 0, energyTotal = 0, otherTotal = 0;
+
+  for(const c of deck){
+    if(c.group === "pokemon"){
+      pokemonTotal += c.count;
+      typeCounts[c.type] = (typeCounts[c.type] || 0) + c.count;
+      stageCounts[c.stage] = (stageCounts[c.stage] || 0) + c.count;
+    }else if(c.group === "trainer"){
+      trainerTotal += c.count;
+      trainerCounts[c.trainer] = (trainerCounts[c.trainer] || 0) + c.count;
+    }else if(c.group === "energy"){
+      energyTotal += c.count;
+      if(c.energyKind === "基本"){
+        const key = c.type !== "その他" ? c.type : "無色";
+        basicEnergy[key] = (basicEnergy[key] || 0) + c.count;
+      }else{
+        specialEnergy += c.count;
+      }
+    }else{
+      otherTotal += c.count;
+    }
+  }
+  return { typeCounts, stageCounts, trainerCounts, basicEnergy, specialEnergy,
+           pokemonTotal, trainerTotal, energyTotal, otherTotal };
+}
+
+function statRow(label, value, color, max){
+  if(value === 0) return "";
+  const pct = Math.min(100, Math.round(value / max * 100));
+  const chip = '<span class="chip" style="background:' + color + '"></span>';
+  return '<div class="count-row">' + chip
+       + '<span class="lbl">' + label + '</span>'
+       + '<span class="bar-wrap"><span class="bar" style="width:' + pct + '%;background:' + color + '"></span></span>'
+       + '<span class="val">' + value + '</span></div>';
+}
+
+function renderStats(){
+  const s = buildStats();
+  const total = totalCount();
+  const max = Math.max(10, total);
+  let html = "";
+
+  html += '<h2 style="font-size:.8rem;color:var(--ink-soft);margin:6px 0">ポケモン（属性）</h2><div class="count-rows">';
+  for(const t of TYPE_ORDER){
+    if(s.typeCounts[t]) html += statRow(t, s.typeCounts[t], TYPE_COLORS[t], max);
+  }
+  if(s.pokemonTotal === 0) html += '<div style="font-size:.78rem;color:var(--ink-soft)">まだいません</div>';
+  html += '</div>';
+
+  html += '<h2 style="font-size:.8rem;color:var(--ink-soft);margin:12px 0 6px">ポケモン（進化）</h2><div class="count-rows">';
+  html += statRow("たね", s.stageCounts["たね"], "#3E9B6E", max);
+  html += statRow("1進化", s.stageCounts["1進化"], "#4A86C8", max);
+  html += statRow("2進化", s.stageCounts["2進化"], "#8A5FB8", max);
+  html += statRow("その他", s.stageCounts["その他"], "#7C8B85", max);
+  html += '</div>';
+
+  html += '<h2 style="font-size:.8rem;color:var(--ink-soft);margin:12px 0 6px">トレーナーズ</h2><div class="count-rows">';
+  html += statRow("グッズ", s.trainerCounts["グッズ"], "#D98A2B", max);
+  html += statRow("サポート", s.trainerCounts["サポート"], "#C25C8A", max);
+  html += statRow("スタジアム", s.trainerCounts["スタジアム"], "#5E9E4C", max);
+  html += statRow("どうぐ", s.trainerCounts["ポケモンのどうぐ"], "#7A8FA8", max);
+  html += statRow("その他", s.trainerCounts["その他"], "#7C8B85", max);
+  html += '</div>';
+
+  html += '<h2 style="font-size:.8rem;color:var(--ink-soft);margin:12px 0 6px">エネルギー</h2><div class="count-rows">';
+  for(const t of TYPE_ORDER){
+    if(s.basicEnergy[t]) html += statRow("基本" + t, s.basicEnergy[t], TYPE_COLORS[t], max);
+  }
+  html += statRow("特殊", s.specialEnergy, "#5B6770", max);
+  html += '</div>';
+
+  if(s.otherTotal > 0){
+    html += '<h2 style="font-size:.8rem;color:var(--ink-soft);margin:12px 0 6px">その他</h2><div class="count-rows">';
+    html += statRow("その他", s.otherTotal, "#7C8B85", max);
+    html += '</div>';
+  }
+
+  html += '<div class="total-line"><span>ポケモン ' + s.pokemonTotal
+        + ' ／ トレーナーズ ' + s.trainerTotal
+        + ' ／ エネルギー ' + s.energyTotal + '</span><b>' + total + '枚</b></div>';
+
+  document.getElementById("statsArea").innerHTML = html;
+
+  /* 警告 */
+  let warns = "";
+  for(const c of deck){
+    if(c.count > 4 && !isBasicEnergy(c)){
+      warns += '<div class="warn">⚠️「' + escapeHtml(c.name) + '」が' + c.count + '枚入っています（同名は4枚まで・基本エネルギーは除く）</div>';
+    }
+  }
+  if(total > 0 && s.stageCounts["たね"] === 0){
+    warns += '<div class="warn">⚠️ たねポケモンが0枚です（対戦できません）</div>';
+  }
+  document.getElementById("warnArea").innerHTML = warns;
+}
+
+/* ---- デッキリスト描画 ---- */
+function renderDeckList(){
+  const area = document.getElementById("deckList");
+  if(deck.length === 0){
+    area.innerHTML = '<div class="empty-msg">デッキはまだ空です。<br>「さがす」からカードを追加してね！</div>';
+    return;
+  }
+  const groups = [
+    { key:"pokemon", label:"ポケモン" },
+    { key:"trainer", label:"トレーナーズ" },
+    { key:"energy",  label:"エネルギー" },
+    { key:"other",   label:"その他" }
+  ];
+  let html = "";
+  for(const g of groups){
+    const items = [];
+    deck.forEach((c, i) => { if(c.group === g.key) items.push([c, i]); });
+    if(items.length === 0) continue;
+    html += '<div class="deck-group-title">' + g.label + '</div>';
+    for(const [c, i] of items){
+      const thumb = c.image
+        ? '<img loading="lazy" src="' + c.image + '" alt="">'
+        : '<div class="thumb-no">🐾</div>';
+      let sub = "";
+      if(c.group === "pokemon") sub = c.type + "・" + c.stage;
+      else if(c.group === "trainer") sub = c.trainer;
+      else if(c.group === "energy") sub = c.energyKind + "エネルギー" + (c.type !== "その他" ? "（" + c.type + "）" : "");
+      const overClass = (c.count > 4 && !isBasicEnergy(c)) ? " over4" : "";
+      const star = isFav(c.name) ? "⭐" : "☆";
+      html += '<div class="deck-item">' + thumb
+            + '<div class="info"><div class="nm">' + escapeHtml(c.name) + '</div><div class="sub">' + sub + '</div></div>'
+            + '<button class="fav-btn" onclick="toggleFav(' + i + ')">' + star + '</button>'
+            + '<div class="stepper">'
+            + '<button onclick="changeCount(' + i + ',-1)">−</button>'
+            + '<span class="cnt' + overClass + '">' + c.count + '</span>'
+            + '<button onclick="changeCount(' + i + ',1)">＋</button>'
+            + '</div></div>';
+    }
+  }
+  area.innerHTML = html;
+}
+
+/* ---- 手札シミュレーター ---- */
+let prizeCards = [];   // サイド6枚
+let prizeOpened = [];  // めくったかどうか
+
+let lastTopDraw = null; // 直近のトップドロー1枚（パターン判定用に保持）
+
+function drawHand(){
+  const area = document.getElementById("handArea");
+  const total = totalCount();
+  if(total < 14){
+    area.innerHTML = '<div class="empty-msg">手札7枚＋サイド6枚＋トップドロー1枚で最低14枚必要です（今は' + total + '枚）</div>';
+    return;
+  }
+  /* 実カードの山を作る */
+  const pile = [];
+  for(const c of deck){
+    for(let k = 0; k < c.count; k++) pile.push(c);
+  }
+  /* Fisher–Yatesシャッフル */
+  for(let i = pile.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [pile[i], pile[j]] = [pile[j], pile[i]];
+  }
+  const hand = pile.slice(0, 7);
+  prizeCards = pile.slice(7, 13);
+  prizeOpened = [false, false, false, false, false, false];
+  lastTopDraw = pile[13];
+  const restCount = pile.length - 14;
+
+  /* --- 手札 --- */
+  let html = '<div class="sim-head">✋ 手札 7枚</div><div class="hand-grid">';
+  hand.forEach((c, i) => {
+    const inner = c.image
+      ? '<img src="' + c.image + '" alt="">'
+      : '<div class="txt">' + escapeHtml(c.name) + '</div>';
+    html += '<div class="hand-card" style="animation-delay:' + (i * 0.07) + 's">' + inner + '</div>';
+  });
+  html += '</div>';
+
+  /* --- この手札そのものになる確率 --- */
+  const handProb = handProbability(hand, total, 7);
+  html += '<div class="hand-prob">🎲 この手札になる確率<b>' + formatProbPercent(handProb) + '</b></div>';
+
+  /* --- マリガン判定 --- */
+  const hasBasic = hand.some(c => c.group === "pokemon" && c.stage === "たね");
+  if(hasBasic){
+    html += '<div class="mulligan good">たねポケモンあり！バトルスタート🔥</div>';
+  }else{
+    html += '<div class="mulligan bad">たねポケモンがいない…マリガン！🌀</div>';
+  }
+
+  /* --- サイド --- */
+  html += '<div class="sim-head" style="margin-top:18px">🏅 サイド 6枚'
+        + '<button class="peek-btn" onclick="revealAllPrizes()">ぜんぶめくる</button></div>'
+        + '<div class="prize-grid" id="prizeGrid"></div>'
+        + '<p class="prize-note">タップすると1枚ずつめくれます（サイド落ちチェック用）</p>';
+
+  /* --- トップドロー --- */
+  const topInner = lastTopDraw.image
+    ? '<img src="' + lastTopDraw.image + '" alt="">'
+    : '<div class="txt">' + escapeHtml(lastTopDraw.name) + '</div>';
+  html += '<div class="sim-head" style="margin-top:18px">🎴 トップドロー <span style="font-weight:400;font-size:.7rem;color:var(--ink-soft)">（次の1枚・合計8枚で判定）</span></div>'
+        + '<div class="hand-grid" style="grid-template-columns:110px">'
+        + '<div class="hand-card">' + topInner + '</div></div>';
+
+  /* --- 欲しい手札パターンの判定（手札7枚＋トップドロー1枚＝計8枚で判定） --- */
+  html += renderPatternMatchHtml(hand.concat([lastTopDraw]));
+
+  html += '<div class="rest-line">🎴 残りの山札 <b>' + restCount + '</b> 枚</div>';
+
+  area.innerHTML = html;
+  renderPrizes();
+}
+
+function renderPrizes(){
+  const grid = document.getElementById("prizeGrid");
+  if(!grid) return;
+  let html = "";
+  prizeCards.forEach((c, i) => {
+    if(prizeOpened[i]){
+      const inner = c.image
+        ? '<img src="' + c.image + '" alt="">'
+        : '<div class="txt">' + escapeHtml(c.name) + '</div>';
+      html += '<div class="prize-card open" onclick="togglePrize(' + i + ')">' + inner + '</div>';
+    }else{
+      html += '<div class="prize-card back" onclick="togglePrize(' + i + ')">'
+            + '<span class="ball"></span><span class="no">' + (i + 1) + '</span></div>';
+    }
+  });
+  grid.innerHTML = html;
+}
+function togglePrize(i){
+  prizeOpened[i] = !prizeOpened[i];
+  renderPrizes();
+}
+function revealAllPrizes(){
+  const allOpen = prizeOpened.every(v => v);
+  prizeOpened = prizeOpened.map(() => !allOpen);
+  renderPrizes();
+}
+
+/* ---- かくりつ（欲しい手札パターン） ----
+ パターン = { id, name, slots }
+ slot = { cards: [{id,name}, ...] }  … 同じ枠の中はどれか1枚あればOK（OR）、枠同士はAND
+------------------------------------------------------- */
+const PATTERN_KEY = "pokedeck_patterns_v1";
+let patternSelection = new Set(); // 現在組み立て中の"枠"でチェックしているカードid
+let pendingSlots = [];            // 登録前の、組み立て中パターンの枠一覧
+
+function getPatterns(){
+  try{ return JSON.parse(localStorage.getItem(PATTERN_KEY)) || []; }
+  catch(e){ return []; }
+}
+function setPatterns(patterns){
+  try{ localStorage.setItem(PATTERN_KEY, JSON.stringify(patterns)); }
+  catch(e){ showToast("保存に失敗しました（容量オーバーかも）"); }
+}
+/* 旧形式（cards配列だけ）で保存されたパターンも、1枠1候補として読めるようにする */
+function getPatternSlots(pattern){
+  if(Array.isArray(pattern.slots)) return pattern.slots;
+  if(Array.isArray(pattern.cards)) return pattern.cards.map(c => ({ cards: [c] }));
+  return [];
+}
+
+/* nCr（順序なし組み合わせの数） */
+function nCr(n, r){
+  if(r < 0 || r > n) return 0;
+  r = Math.min(r, n - r);
+  let num = 1;
+  for(let i = 0; i < r; i++){
+    num = num * (n - i) / (i + 1);
+  }
+  return num;
+}
+
+/* 実際に配られた「この手札そのもの」が出る確率（多変量超幾何分布）
+   手札内の各カード種類について、デッキ内のその種類の枚数からちょうど同じ枚数を引く確率の掛け算 */
+function handProbability(hand, deckTotal, handSize){
+  const denom = nCr(deckTotal, handSize);
+  if(denom === 0) return 0;
+  const counts = new Map(); // id -> { k: 手札内の枚数, total: デッキ内の枚数 }
+  for(const c of hand){
+    if(!counts.has(c.id)) counts.set(c.id, { k: 0, total: c.count });
+    counts.get(c.id).k += 1;
+  }
+  let numerator = 1;
+  for(const { k, total } of counts.values()){
+    numerator *= nCr(total, k);
+  }
+  return Math.max(0, Math.min(1, numerator / denom));
+}
+/* 確率をパーセント表示用に整形（極小の値でも桁が分かるようにする） */
+function formatProbPercent(p){
+  if(p <= 0) return "0%";
+  const pct = p * 100;
+  if(pct >= 1) return pct.toFixed(2) + "%";
+  if(pct >= 0.01) return pct.toFixed(3) + "%";
+  return pct.toExponential(2) + "%";
+}
+
+/* 各枠について、今のデッキに実在する候補カード（重複id除く）を集める */
+function resolveSlotCards(slot){
+  const seen = new Set();
+  const result = [];
+  for(const pc of slot.cards){
+    const c = deck.find(d => d.id === pc.id) || deck.find(d => d.name === pc.name);
+    if(c && !seen.has(c.id)){ seen.add(c.id); result.push(c); }
+  }
+  return result;
+}
+
+/* 「各枠について、その枠の候補カードのうち最低1枚が初手8枚（7枚+トップドロー1枚）に来る」確率を
+   包除原理（超幾何分布の一般化）で計算。枠同士でカードが重複していても正しく扱う */
+function patternProbabilityFromSlots(slots, deckTotal, handSize){
+  const base = nCr(deckTotal, handSize);
+  if(base === 0) return 0;
+  const slotCardLists = slots.map(resolveSlotCards);
+  const m = slots.length;
+  let sum = 0;
+  for(let mask = 0; mask < (1 << m); mask++){
+    const unionCounts = new Map();
+    let bits = 0;
+    for(let i = 0; i < m; i++){
+      if(mask & (1 << i)){
+        bits++;
+        for(const c of slotCardLists[i]) unionCounts.set(c.id, c.count);
+      }
+    }
+    let sumC = 0;
+    for(const v of unionCounts.values()) sumC += v;
+    const sign = (bits % 2 === 0) ? 1 : -1;
+    sum += sign * nCr(deckTotal - sumC, handSize);
+  }
+  return Math.max(0, Math.min(1, sum / base));
+}
+
+function togglePatternCard(id, checked){
+  if(checked) patternSelection.add(id);
+  else patternSelection.delete(id);
+}
+
+function addSlotFromSelection(){
+  if(patternSelection.size === 0){ showToast("カードにチェックを入れてね"); return; }
+  const cards = [];
+  for(const id of patternSelection){
+    const c = deck.find(d => d.id === id);
+    if(c) cards.push({ id: c.id, name: c.name });
+  }
+  if(cards.length === 0){ showToast("選択したカードが見つかりません"); return; }
+  pendingSlots.push({ cards });
+  patternSelection.clear();
+  renderPatternBuilder();
+  renderPendingSlots();
+  showToast("候補グループを枠として追加しました（" + cards.length + "種）");
+}
+function removePendingSlot(index){
+  pendingSlots.splice(index, 1);
+  renderPendingSlots();
+}
+function renderPendingSlots(){
+  const area = document.getElementById("pendingSlotsArea");
+  if(!area) return;
+  if(pendingSlots.length === 0){
+    area.innerHTML = '<div style="font-size:.75rem;color:var(--ink-soft);padding:4px 2px">まだ枠がありません。上のカードにチェックを入れて「候補グループを枠として追加」を押してね。</div>';
+    return;
+  }
+  let html = "";
+  pendingSlots.forEach((slot, i) => {
+    const names = slot.cards.map(c => escapeHtml(c.name)).join(' または ');
+    html += '<div class="slot-chip-row"><span class="slot-no">枠' + (i + 1) + '</span>'
+          + '<span class="slot-names">' + names + '</span>'
+          + '<button class="slot-rm" onclick="removePendingSlot(' + i + ')">×</button></div>';
+  });
+  area.innerHTML = html;
+}
+
+function savePattern(){
+  const input = document.getElementById("patternNameInput");
+  const name = input.value.trim();
+  if(!name){ showToast("パターン名を入れてね"); return; }
+  if(pendingSlots.length === 0){ showToast("候補グループ（枠）を1つ以上追加してね"); return; }
+  const patterns = getPatterns();
+  patterns.push({ id: "pattern_" + Date.now(), name, slots: JSON.parse(JSON.stringify(pendingSlots)) });
+  setPatterns(patterns);
+  pendingSlots = [];
+  patternSelection.clear();
+  input.value = "";
+  renderPatternBuilder();
+  renderPendingSlots();
+  renderPatternList();
+  showToast("「" + name + "」を登録しました！");
+}
+function deletePattern(id){
+  if(!confirm("このパターンを削除しますか？")) return;
+  setPatterns(getPatterns().filter(p => p.id !== id));
+  renderPatternList();
+  showToast("削除しました");
+}
+
+function computePatternProbability(pattern){
+  const total = totalCount();
+  const slots = getPatternSlots(pattern);
+  const missing = slots.some(s => resolveSlotCards(s).length === 0);
+  return { prob: patternProbabilityFromSlots(slots, total, 8), missing };
+}
+
+function renderPatternBuilder(){
+  const area = document.getElementById("patternChecklist");
+  if(!area) return;
+  if(deck.length === 0){
+    area.innerHTML = '<div class="empty-msg">デッキが空です。まず「デッキ」からカードを追加してね。</div>';
+    return;
+  }
+  const groups = [
+    { key:"pokemon", label:"ポケモン" },
+    { key:"trainer", label:"トレーナーズ" },
+    { key:"energy",  label:"エネルギー" },
+    { key:"other",   label:"その他" }
+  ];
+  let html = "";
+  for(const g of groups){
+    const items = deck.filter(c => c.group === g.key);
+    if(items.length === 0) continue;
+    html += '<div class="deck-group-title">' + g.label + '</div>';
+    for(const c of items){
+      const thumb = c.image
+        ? '<img loading="lazy" src="' + c.image + '" alt="">'
+        : '<div class="thumb-no">🐾</div>';
+      let sub = "";
+      if(c.group === "pokemon") sub = c.type + "・" + c.stage;
+      else if(c.group === "trainer") sub = c.trainer;
+      else if(c.group === "energy") sub = c.energyKind + "エネルギー" + (c.type !== "その他" ? "（" + c.type + "）" : "");
+      const checked = patternSelection.has(c.id) ? "checked" : "";
+      html += '<label class="pattern-check-row">'
+            + '<input type="checkbox" ' + checked + ' onchange="togglePatternCard(\'' + c.id + '\', this.checked)">'
+            + thumb
+            + '<div class="info"><div class="nm">' + escapeHtml(c.name) + '</div>'
+            + '<div class="sub">' + sub + '（デッキ内' + c.count + '枚）</div></div>'
+            + '</label>';
+    }
+  }
+  area.innerHTML = html;
+}
+
+function renderPatternList(){
+  const area = document.getElementById("patternList");
+  if(!area) return;
+  const patterns = getPatterns();
+  if(patterns.length === 0){
+    area.innerHTML = '<div class="empty-msg">登録したパターンはまだありません</div>';
+    return;
+  }
+  const total = totalCount();
+  let html = "";
+  patterns.forEach(p => {
+    const { prob, missing } = computePatternProbability(p);
+    const pct = total >= 8 ? (prob * 100).toFixed(1) + "%" : "—";
+    const slots = getPatternSlots(p);
+    const slotLines = slots.map(s =>
+      '<div class="pt-slot-line">・' + s.cards.map(c => escapeHtml(c.name)).join(' または ') + '</div>'
+    ).join("");
+    html += '<div class="pattern-card">'
+          + '<div class="pt-head"><span class="pt-name">' + escapeHtml(p.name) + '</span>'
+          + '<span class="pt-prob">' + pct + '</span></div>'
+          + '<div class="pt-cards">' + slotLines + '</div>'
+          + (missing ? '<div class="warn">⚠️ 候補カードが全てデッキに無い枠があります</div>' : '')
+          + (total < 8 ? '<div class="warn">⚠️ デッキが8枚未満のため計算できません</div>' : '')
+          + '<button class="pt-del" onclick="deletePattern(\'' + p.id + '\')">削除</button>'
+          + '</div>';
+  });
+  area.innerHTML = html;
+}
+
+/* 実際に配られた手札に対して、パターンごとに揃ったか個別判定 */
+function renderPatternMatchHtml(hand){
+  const patterns = getPatterns();
+  if(patterns.length === 0) return "";
+  let html = '<div class="sim-head" style="margin-top:18px">🎯 欲しい手札チェック</div>';
+  patterns.forEach(p => {
+    const slots = getPatternSlots(p);
+    const ok = slots.every(slot => slot.cards.some(pc => hand.some(h => h.id === pc.id || h.name === pc.name)));
+    html += '<div class="mulligan pattern-result ' + (ok ? 'good' : 'bad') + '">'
+          + (ok
+             ? '✅ 「' + escapeHtml(p.name) + '」揃った！'
+             : '🚨 事故アラート！「' + escapeHtml(p.name) + '」が揃いませんでした')
+          + '</div>';
+  });
+  return html;
+}
+
+/* ---- デッキのテキスト化＆コピー ---- */
+const textDialog = document.getElementById("textDialog");
+
+function buildDeckText(){
+  const name = document.getElementById("deckNameInput").value.trim();
+  const groups = [
+    { key:"pokemon", label:"ポケモン" },
+    { key:"trainer", label:"トレーナーズ" },
+    { key:"energy",  label:"エネルギー" },
+    { key:"other",   label:"その他" }
+  ];
+  let text = "";
+  if(name) text += "■ " + name + "\n";
+  for(const g of groups){
+    const items = deck.filter(c => c.group === g.key);
+    if(items.length === 0) continue;
+    let sum = 0;
+    for(const c of items){ sum += c.count; }
+    text += "\n【" + g.label + "】" + sum + "枚\n";
+    for(const c of items){
+      text += c.count + " " + c.name + "\n";
+    }
+  }
+  text += "\n合計 " + totalCount() + "枚\n";
+  return text;
+}
+function openTextDialog(){
+  if(deck.length === 0){ showToast("デッキが空です"); return; }
+  document.getElementById("deckTextArea").value = buildDeckText();
+  textDialog.showModal();
+}
+async function copyDeckText(){
+  const ta = document.getElementById("deckTextArea");
+  const text = ta.value;
+  let ok = false;
+  /* まずクリップボードAPI、ダメなら旧式のselect+copyでフォールバック */
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    try{
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }catch(e){}
+  }
+  if(!ok){
+    try{
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      ok = document.execCommand("copy");
+    }catch(e){}
+  }
+  showToast(ok ? "コピーしました！" : "コピーできませんでした。長押しで選択してね");
+}
+
+/* ---- 表示切替・共通 ---- */
+function showView(name){
+  for(const v of ["search","deck","hand","prob"]){
+    document.getElementById("view-" + v).classList.toggle("active", v === name);
+    document.getElementById("tab-" + v).classList.toggle("active", v === name);
+  }
+}
+function renderRing(){
+  const total = totalCount();
+  const ratio = Math.min(1, total / 60);
+  const circ = 138.2;
+  document.getElementById("ringBar").setAttribute("stroke-dashoffset", circ * (1 - ratio));
+  document.getElementById("ringBar").setAttribute("stroke", total === 60 ? "var(--poke-green)" : "var(--poke-red)");
+  document.getElementById("ringNum").textContent = total;
+  document.getElementById("totalTag").textContent = total + " / 60";
+}
+function renderAll(){
+  renderRing();
+  renderStats();
+  renderDeckList();
+  renderSavedList();
+  renderQuickArea();
+  renderPatternBuilder();
+  renderPendingSlots();
+  renderPatternList();
+}
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+document.getElementById("searchInput").addEventListener("keydown", e => {
+  if(e.key === "Enter"){ e.preventDefault(); doSearch(); }
+});
+
+/* 起動 */
+loadDeck();
+migrateDeck();
+saveDeck();
+renderAll();
+</script>
+</body>
+</html>
