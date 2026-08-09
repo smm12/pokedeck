@@ -914,10 +914,11 @@ function renderSavedList(){
 function exportDeck(){
   const data = {
     app: "pokedeck",
-    version: 1,
+    version: 2,
     exported: new Date().toISOString(),
     currentDeck: deck,
-    savedDecks: getSaves()
+    savedDecks: getSaves(),
+    patterns: getPatterns()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
@@ -942,6 +943,9 @@ function importDeck(input){
           const saves = getSaves();
           Object.assign(saves, data.savedDecks); // 同名は上書き
           setSaves(saves);
+        }
+        if(Array.isArray(data.patterns)){
+          setPatterns(mergePatterns(data.patterns)); // 同じidのパターンは上書き
         }
         if(Array.isArray(data.currentDeck)) deck = data.currentDeck;
       }else{
@@ -1383,6 +1387,14 @@ function getPatterns(){
 function setPatterns(patterns){
   try{ localStorage.setItem(PATTERN_KEY, JSON.stringify(patterns)); }
   catch(e){ showToast("保存に失敗しました（容量オーバーかも）"); }
+}
+/* インポートしたパターンを、今あるパターンと突き合わせてマージする（同じidは上書き） */
+function mergePatterns(importedPatterns){
+  const map = new Map(getPatterns().map(p => [p.id, p]));
+  for(const p of importedPatterns){
+    if(p && p.id) map.set(p.id, p);
+  }
+  return Array.from(map.values());
 }
 /* 旧形式（cards配列だけ）で保存されたパターンも、1枠1候補として読めるようにする */
 function getPatternSlots(pattern){
