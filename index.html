@@ -1436,7 +1436,9 @@ function formatProbPercent(p){
   const pct = p * 100;
   if(pct >= 1) return pct.toFixed(2) + "%";
   if(pct >= 0.01) return pct.toFixed(3) + "%";
-  return pct.toExponential(2) + "%";
+  /* 指数表記(e-3など)は誤読しやすいので、極小の確率は「約1/N回」で表す */
+  const odds = Math.max(1, Math.round(1 / p));
+  return "約" + odds.toLocaleString("ja-JP") + "回に1回";
 }
 
 /* 各枠について、今のデッキに実在する候補カード（重複id除く）を集める */
