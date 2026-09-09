@@ -78,6 +78,7 @@ nav button:nth-child(1).active{color:var(--poke-blue)}
 nav button:nth-child(2).active{color:var(--poke-green)}
 nav button:nth-child(3).active{color:var(--poke-red)}
 nav button:nth-child(4).active{color:#8A5FB8}
+nav button:nth-child(5).active{color:var(--poke-red)}
 
 /* ===== セクション共通 ===== */
 main{max-width:920px;margin:0 auto;padding:16px}
@@ -432,6 +433,7 @@ dialog input,dialog select{
   <button id="tab-deck" onclick="showView('deck')"><span class="ico">🎴</span>デッキ</button>
   <button id="tab-hand" onclick="showView('hand')"><span class="ico">✋</span>てふだ</button>
   <button id="tab-prob" onclick="showView('prob')"><span class="ico">🎯</span>かくりつ</button>
+  <button id="tab-help" onclick="showView('help')"><span class="ico">❓</span>つかいかた</button>
 </nav>
 
 <main>
@@ -527,6 +529,30 @@ dialog input,dialog select{
   <div class="panel">
     <h2>登録したパターン</h2>
     <div id="patternList"></div>
+  </div>
+</section>
+
+<!-- ===== つかいかた ===== -->
+<section id="view-help">
+  <div class="panel">
+    <h2>🔍 さがす</h2>
+    <p style="font-size:.85rem;line-height:1.7">カード名を入力して検索すると、TCGdex APIから日本語のカード情報を取得します。検索結果のカードをタップするとデッキに追加されます。データベースに無いカードは「手動追加」から名前・種類などを入力して登録できます。「よく使うカード」にはエネルギーカードなどのプリセットがあり、タップですぐ追加できます。デッキ画面でカードの☆マークを押すと、ここにお気に入り登録されます。</p>
+  </div>
+  <div class="panel">
+    <h2>🎴 デッキ</h2>
+    <p style="font-size:.85rem;line-height:1.7">追加したカードの枚数集計（60枚中何枚か）や、ポケモン/グッズ/エネルギーなどの内訳が確認できます。デッキ名を付けて「保存」すると複数デッキを保存でき、あとから呼び出せます。「ファイルに書き出し／読み込み」でデッキデータをJSONファイルとしてバックアップ・共有できます。「デッキをテキストでコピー」で公式フォーマットのデッキリストをコピーできます。</p>
+  </div>
+  <div class="panel">
+    <h2>✋ てふだ</h2>
+    <p style="font-size:.85rem;line-height:1.7">今のデッキをシャッフルし、手札7枚・サイド6枚・トップドロー1枚を実際に配って試せます。「シャッフルして配る！」を押すたびに新しい手札パターンが表示されるので、初手の動きをシミュレーションするのに使えます。</p>
+  </div>
+  <div class="panel">
+    <h2>🎯 かくりつ</h2>
+    <p style="font-size:.85rem;line-height:1.7">「初手8枚（手札7枚＋トップドロー1枚）でこのカードが引ける確率」を計算できます。デッキの中からカードにチェックを入れて「候補グループを追加」すると、その中の<b>どれか1枚あればOK</b>な枠になります。枠を組み合わせてパターン名を付けて登録すると、その組み合わせが揃う確率が一覧に表示されます。</p>
+  </div>
+  <div class="panel">
+    <h2>💡 ヒント</h2>
+    <p style="font-size:.85rem;line-height:1.7">デッキは自動的にブラウザ内に保存されるので、次回開いたときも作業の続きから始められます。別の端末でも使いたい場合は「ファイルに書き出し」でバックアップしたJSONファイルを、別端末で「ファイルから読み込み」してください。</p>
   </div>
 </section>
 
@@ -1686,7 +1712,7 @@ async function copyDeckText(){
 
 /* ---- 表示切替・共通 ---- */
 function showView(name){
-  for(const v of ["search","deck","hand","prob"]){
+  for(const v of ["search","deck","hand","prob","help"]){
     document.getElementById("view-" + v).classList.toggle("active", v === name);
     document.getElementById("tab-" + v).classList.toggle("active", v === name);
   }
